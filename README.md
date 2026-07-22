@@ -1,5 +1,7 @@
 # TokenUsageInsights
 
+![TokenUsageInsights Codex monthly dashboard](screenshots/june2026_codex.jpg)
+
 本機優先的 Token 使用量與 Session 看板，專注支援：
 
 - GitHub Copilot Chat（VS Code）
