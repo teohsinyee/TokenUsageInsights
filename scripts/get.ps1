@@ -19,7 +19,8 @@ param(
     [string]$Version = "latest",
     [string]$InstallDir,
     [string]$BinDir,
-    [int]$Port = 3003
+    [int]$Port = 3003,
+    [switch]$Autostart
 )
 
 $ErrorActionPreference = "Stop"
@@ -67,6 +68,7 @@ try {
     }
 
     $InstallArgs = @{ Port = $Port }
+    if ($Autostart) { $InstallArgs["Autostart"] = $true }
     if ($InstallDir) { $InstallArgs["InstallDir"] = $InstallDir }
     if ($BinDir) { $InstallArgs["BinDir"] = $BinDir }
 

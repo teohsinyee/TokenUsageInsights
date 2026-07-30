@@ -15,14 +15,15 @@
 
 你可以把這段話貼給 Codex：
 
-> 請幫我安裝並啟動 TokenUsageInsights，讀取我本機的 GitHub Copilot 和 Codex 使用記錄，確認 Dashboard 可以開啟，並告訴我哪些資料成功同步。
+> 請幫我安裝並啟動 TokenUsageInsights，讀取我本機的 GitHub Copilot 和 Codex 使用記錄，設定 Windows 登入後自動在背景執行，確認 Dashboard 可以開啟，並告訴我哪些資料成功同步。
 
 ## 安裝
 
 ### Windows PowerShell
 
 ```powershell
-irm https://raw.githubusercontent.com/doggy8088/TokenUsageInsights/main/scripts/get.ps1 | iex
+$script = irm https://raw.githubusercontent.com/doggy8088/TokenUsageInsights/main/scripts/get.ps1
+iex "& { $script } -Autostart"
 & "$HOME\bin\token-usage-insights.cmd"
 ```
 
@@ -75,7 +76,7 @@ Copilot CLI 需要把 Status Line 腳本接到 Copilot CLI 的設定，讓每次
 | Copilot 記錄 | `%USERPROFILE%\.copilot` |
 | SQLite 資料庫 | `%LOCALAPPDATA%\TokenUsageInsights\token_usage_insights.db` |
 
-Windows 安裝版不需要 Rust、Cargo、WSL、Git Bash 或 `jq`。
+Windows 安裝版不需要 Rust、Cargo、WSL、Git Bash 或 `jq`。使用 `-Autostart` 時，安裝器會建立隱藏的 Windows 登入工作，並在服務停止後自動重啟。
 
 ## 沒有資料時
 
