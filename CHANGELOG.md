@@ -2,9 +2,119 @@
 
 本文件記錄 TokenUsageInsights 各正式版本的實際變更。內容依 Git 標籤間的提交記錄與檔案差異整理，格式參考 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.1.0/)，版本編號遵循 [Semantic Versioning](https://semver.org/lang/zh-TW/)。
 
-## [未發行]
+## [0.7.0] - 2026-08-11
 
-目前沒有尚未發行的變更。
+### 新增與改善
+
+- 看板支援以網址查詢參數直接開啟指定狀態的畫面：`agent` 指定 Coding Agent、`tab` 指定日 / 月 / 年視圖、`date` 指定日期、月份或年份，並新增 `dir`（每日視圖工作目錄篩選，支援完整路徑、`~` 家目錄寫法與唯一路徑尾碼比對）與 `chart`（每日圖表類型 `kline` / `trend`）參數。切換 Agent、視圖、日期、工作目錄或圖表類型時網址會自動同步，方便加入書籤與分享連結。五種語系的 README 皆已補上用法說明。
+
+### 修正
+
+- 修正每日視圖工作目錄篩選的尾碼比對，改以路徑分隔邊界為準並統一不分大小寫，避免誤配較長的目錄名稱。
+- 通知訊息改用 `textContent` 寫入，消除 XSS 注入風險（CodeQL `js/xss-through-exception`）。
+- 補充 kimi-k3 模型價格規則，修復成本計算失敗的問題。
+
+## [0.6.4] - 2026-08-08
+
+### 修正
+
+- 修正 GitHub Copilot CLI 與 App 工作目錄 (CWD) 無法顯示的問題。CLI Agent 覆蓋原本含 CWD 的 hook rows 時硬編碼 `cwd = NULL`，App 路徑也從未設定 CWD。現在改從 `session-store.db.sessions` 表取得 CWD，並新增一次性回填遷移補齊既有資料。
+
+### 資料影響
+
+- 新增 `migration:copilot_cwd_backfill_v1` 一次性遷移：掃描 `usage_entries` 中 `assistant_type = 'copilot'` 且 `cwd IS NULL` 的記錄，從 `session-store.db.sessions` 補填工作目錄，不影響其他助理資料。
+
+## [0.6.3] - 2026-08-07
+
+### 新增與改善
+
+- 新增 Claude Opus 5 模型定價規則。
+- 完成五語系文件（繁中、簡中、英文、日文、韓文）與網站介面本地化。
+- 整理一頁式介紹頁總結並完成 GitHub Pages 發佈設定。
+- 調整首頁 footer 版面與課程連結呈現。
+
+### 修正
+
+- 修正每日 Token 摘要重複計算的問題，避免同一 Session 跨多筆記錄時總量被加倍。
+- 容錯處理 VS Code Copilot 聊天記錄中的未成對 UTF-16 代理字元（lone surrogate），避免解析時發生 panic。
+
+## [0.6.2] - 2026-08-01
+
+### 新增與改善
+
+- 支援 GitHub Copilot App（Tauri 桌面應用）的 Token 使用量同步，自動讀取 `~/.copilot/data.db` 與 `~/.copilot/session-store.db`，依 Session、Turn、Agent 與模型保存 `assistant_usage_events`，並以 `source_kind = "copilot-app"` 與 CLI / VS Code 區分；Session 清單以 `App` 標示來源。新增 `COPILOT_APP_DIR` 環境變數自訂 App 資料目錄。
+- 新增 Grok Build 助理支援，掃描 `~/.grok/sessions` 的 `updates.jsonl`，提供每日、月度、年度統計、Session 清單與時間軸還原。
+- 支援 Grok Build 的 provider usage、model alias、reasoning effort、快取讀取與 context-only snapshot，並在 Session 清單標示 `Usage` 或 `Context` 來源。
+- 模型用量明細新增 Session 下鑽，可從每日、月度與年度模型統計直接查看對應 Session。
+- 看板匯出會依目前報表範圍輸出完整日、月或年資料；CLI 同步支援 `YYYY`、`YYYY-MM` 與 `YYYY-MM-DD`。
+- 匯入改為逐筆依 `timestamp` 決定日期，可一次匯入跨日、跨月或跨年的完整檔案。
+- 新增 `HOST` 環境變數控制看板綁定位址，啟動訊息會顯示實際可連線網址。
+
+### 變更
+
+- Grok Build Session 若包含 provider 回報成本，統計頁面會優先使用該成本；只有 context snapshot 時才依 xAI API pricing 估算。
+- Cursor 會從本機 `state.vscdb` 的 `agentKv` 記錄歸因實際模型與 Mode；無法唯一比對時保留為未知模型，避免錯誤歸因。
+- Session 清單改依實際時間排序，統一各來源時間戳解析。
+- 費用統計改依每筆資料的實際模型計算，不再以整個 Session 的單一模型套用價格。
+
+### 資料影響
+
+- SQLite `usage_entries` 新增 `reported_cost_usd` 欄位，並以一次性 migration 重新解析既有 Grok Build Session；不會刪除其他助理的資料。
+- Copilot App 會依來源目錄、Session、Turn、Agent 與模型隔離記錄，並清理舊版可能合併的資料；既有匯入批次與其他助理資料不受影響。
+
+### 相容性
+
+- 新增 `GROK_DIR`、`COPILOT_APP_DIR`、`CURSOR_STATE_DB` 與 `HOST` 環境變數；既有助理識別碼、API 與資料目錄維持相容。
+- 匯入檔案的頂層 `date` 與 CLI `--date` 僅保留作為批次標籤；資料實際日期一律由每筆 `timestamp` 決定。
+
+### 修正
+
+- 防止匯入檔案被寫入不同 Agent，保留來源驗證、重複資料去重、批次追蹤與撤銷能力。
+- 修正 Claude 快取寫入費用、每日舊格式用量彙整，以及多模型 Session 的成本計算。
+- 新增 Claude Opus 5 與 Gemini 3.6 Flash 費率，並移除已下架的 Grok 模型定價。
+- 修正非 Codex 長上下文模型的計價門檻，改由 `pricing.csv` 動態解析各模型的實際門檻，並將 Gemini 3.1 Pro 與 Claude Opus 4.6 的門檻修正為 200K。
+- 修正 Gemini 3.1 Pro 的快取價格，改用 Google Standard Context caching 的 0.20／0.40 美元費率。
+- 修正模型名稱 contains fallback，優先套用最具體的模型 base，避免 `GPT-5.4-mini-picker` 誤用 `GPT-5.4` 價格。
+- 修正 Copilot App 與 CLI 同一 Agent 使用多個模型時可能合併或覆寫用量，以及 CLI 總量暫時不符時錯誤推進同步游標的問題。
+- 修正 Grok Build provider cost、headless 快取輸入、同回合多模型歸因、未知模型與時間軸 EOF 回合的解析行為。
+- 保留 `grok-build-0.1` 的獨立歷史定價規則，避免誤套 Grok 4.5 定價。
+
+## [0.6.1] - 2026-07-26
+
+### 修正
+
+- 修正 Windows 上既有 Codex transcript 路徑使用不同大小寫或斜線格式時，重新同步可能無法移除舊路徑記錄，造成同一 Session 留下重複資料的問題。
+- transcript 路徑會以正規化鍵進行跨格式比對，刪除資料時則使用資料庫保存的原始路徑精確命中索引。
+
+### 相容性
+
+- Windows、macOS 與 Linux 的既有 Codex Session、API、資料庫結構及 `CODEX_DIR` 設定維持相容，不需要手動遷移。
+
+## [0.6.0] - 2026-07-26
+
+### 新增與改善
+
+- Codex 用量收集擴充至 Codex Desktop，並在每日 Session 清單以 `Desktop` 或 `CLI` 標記來源。
+- 同時掃描 `~/.codex/sessions` 與 `~/.codex/archived_sessions`，納入作用中及已封存的 Codex Session。
+- 保存 Codex transcript 提供的 cache-write Token，讓快取寫入統計更完整。
+
+### 修正
+
+- 修正 Codex Session 封存後因 transcript 移動至 `archived_sessions` 而無法同步或開啟時間軸的問題。
+- 修正 Session 從封存狀態還原後，既有同步狀態可能讓資料庫保留舊 transcript 路徑的問題。
+- 修正大量 Codex transcript 會讓啟動同步阻塞 HTTP 服務的問題；看板現在會先開始監聽，再於背景執行增量同步。
+- 修正背景同步逐檔掃描全部 Codex 資料列，並重複解析沒有 Token 事件之 transcript 的效能問題。
+
+### 資料影響
+
+- 新增一次性 Codex 來源分類遷移；下次同步會重新掃描既有 Codex transcript，將可辨識的記錄分類為 Desktop 或 CLI。
+- 自動建立 `(assistant_type, transcript_path)` 複合索引，加速 transcript 路徑查詢與重建。
+- 沒有 Token 事件的 Codex transcript 會以同步狀態標記為已檢查；後續只有檔案大小改變時才重新解析，不會新增虛構的用量資料。
+
+### 相容性
+
+- `codex` 助理識別碼、既有 API 與 `CODEX_DIR` 環境變數維持相容；Codex Session 的 `source_kind` 會由 `legacy` 更新為可辨識的來源值。
+- 資料庫索引與同步狀態會自動建立，不需要手動遷移或調整安裝設定。
 
 ## [0.5.0] - 2026-07-20
 
@@ -249,7 +359,9 @@
 - 修正行動版側邊欄遮擋、黑畫面、標題擠壓、圖表導覽索引與年度版面問題。
 - 修正並補齊多個 Gemini、Claude、GPT 與 GPT-OSS 模型的定價規則。
 
-[未發行]: https://github.com/doggy8088/TokenUsageInsights/compare/v0.5.0...HEAD
+[未發行]: https://github.com/doggy8088/TokenUsageInsights/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/doggy8088/TokenUsageInsights/compare/v0.6.0...v0.6.1
+[0.6.0]: https://github.com/doggy8088/TokenUsageInsights/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/doggy8088/TokenUsageInsights/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/doggy8088/TokenUsageInsights/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/doggy8088/TokenUsageInsights/compare/v0.3.2...v0.4.0
